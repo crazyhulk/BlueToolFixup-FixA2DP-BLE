@@ -289,6 +289,23 @@ static const uint8_t kLeEventMaskPatched26[] =
     0x0F, 0x1F, 0x40, 0x00
 };
 
+// macOS 26.7.2 (25G332) x86_64 bluetoothd, 0x100175188
+static const uint8_t kLeEventMaskOriginal26_7[] =
+{
+    0x85, 0xC0,
+    0x48, 0x8D, 0x05, 0xF0, 0x32, 0x90, 0x00,
+    0x48, 0x8D, 0x15, 0xF1, 0x32, 0x90, 0x00,
+    0x48, 0x0F, 0x44, 0xD0
+};
+
+static const uint8_t kLeEventMaskPatched26_7[] =
+{
+    0x85, 0xC0,
+    0x48, 0x8D, 0x05, 0xF0, 0x32, 0x90, 0x00,
+    0x48, 0x8D, 0x15, 0xF1, 0x32, 0x90, 0x00,
+    0x0F, 0x1F, 0x40, 0x00
+};
+
 // Advertising set random address (0x10050ef2e on 26.4.1): for chipset <= 3 bluetoothd turns
 // off LE Set Advertising Set Random Address, then enables sets whose own address type is
 // random, which the controller rejects with Invalid HCI Command Parameters (0x12).
@@ -308,6 +325,21 @@ static const uint8_t kAdvSetAddrPatched26[] =
     0x31, 0xFF, 0xE8, 0xA2, 0x7D, 0xCE, 0xFF
 };
 
+// macOS 26.7.2 (25G332) x86_64 bluetoothd, 0x10051523e
+static const uint8_t kAdvSetAddrOriginal26_7[] =
+{
+    0x83, 0xB8, 0x34, 0x03, 0x00, 0x00, 0x03,
+    0x77, 0x2A,
+    0x31, 0xFF, 0xE8, 0x1E, 0x6C, 0xCE, 0xFF
+};
+
+static const uint8_t kAdvSetAddrPatched26_7[] =
+{
+    0x83, 0xB8, 0x34, 0x03, 0x00, 0x00, 0x03,
+    0xEB, 0x07,
+    0x31, 0xFF, 0xE8, 0x1E, 0x6C, 0xCE, 0xFF
+};
+
 // LE Extended Create Connection (0x10050eb5c on 26.4.1). With extended scanning on, the
 // controller rejects legacy LE Create Connection (0x200d) with Command Disallowed, and after
 // enough of those bluetoothd restarts itself ("Exceed max allowed consecutive command
@@ -323,6 +355,19 @@ static const uint8_t kExtCreateConnPatched26[] =
 {
     0xBF, 0x01, 0x00, 0x00, 0x00, 0x66, 0x90,
     0xE8, 0x2F, 0xB0, 0xCF, 0xFF
+};
+
+// macOS 26.7.2 (25G332) x86_64 bluetoothd, 0x100514e6c
+static const uint8_t kExtCreateConnOriginal26_7[] =
+{
+    0x0F, 0xB6, 0xBD, 0x5E, 0xFF, 0xFF, 0xFF,
+    0xE8, 0xAB, 0x9E, 0xCF, 0xFF
+};
+
+static const uint8_t kExtCreateConnPatched26_7[] =
+{
+    0xBF, 0x01, 0x00, 0x00, 0x00, 0x66, 0x90,
+    0xE8, 0xAB, 0x9E, 0xCF, 0xFF
 };
 
 // Advertising set random address before every enable (0x1001f951b on 26.4.1). bluetoothd
@@ -346,6 +391,90 @@ static const uint8_t kAdvSetAddrResendPatched26[] =
     0x33, 0x94, 0x08, 0x11, 0x0D, 0x00, 0x00,
     0x44, 0x09, 0xC2,
     0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00
+};
+
+// Filter Accept List RPA substitution for third-party controllers (macOS 26.7.2 x86_64):
+// bluetoothd does not program the standard HCI Resolving List (0x2027..0x202E) on third-party
+// controllers; instead, it resolves peer Resolvable Private Addresses (RPAs) in host software
+// (0x10022766b) and overwrites incoming advertising report addresses in-place with the peer's
+// Identity Address. When initiating an LE connection (e.g. iPhone Mirroring / rapportd BLE L2CAP),
+// bluetoothd adds the peer's Identity Address to the controller Filter Accept List (0x2011) and
+// issues LE Extended Create Connection (0x2043) with Initiator_Filter_Policy = 0x01. Because the
+// peer advertises over the air with a Random RPA and controller-side RPA resolution is unused,
+// the controller never matches the advertisement.
+// Record each resolved (Identity_Address, Latest_RPA) pair in 0x10022766b and substitute the
+// peer's RPA into the HCI 0x2011 (Add) and 0x2012 (Remove) commands in 0x10023561b / 0x100235952
+// while keeping the Identity Address in bluetoothd's software Filter Accept List mirror.
+static const uint8_t kRpaResolveHookOriginal26_7[] =
+{
+    0x42, 0x8A, 0x44, 0x20, 0xFF, 0x41, 0x88, 0x46, 0x06, 0x66, 0x41, 0x89, 0x56, 0x04, 0x41, 0x89,
+    0x0E, 0xC6, 0x03, 0x01
+};
+
+static const uint8_t kRpaResolveHookPatched26_7[] =
+{
+    0x42, 0x8A, 0x44, 0x20, 0xFF, 0x41, 0x88, 0x46, 0x06, 0x66, 0x41, 0x89, 0x56, 0x04, 0xE8, 0xCA,
+    0x00, 0x00, 0x00, 0x90
+};
+
+static const uint8_t kRpaResolveSaveOriginal26_7[] =
+{
+    0xBF, 0x01, 0x00, 0x00, 0x00, 0xBE, 0x43, 0x00, 0x00, 0x00, 0xE8, 0x36, 0x0A, 0xEC, 0xFF, 0x84,
+    0xC0, 0x74, 0x65, 0x48, 0x8D, 0x3D, 0x72, 0xD4, 0x71, 0x00, 0x31, 0xDB, 0x31, 0xC0, 0xE8, 0x85,
+    0x83, 0x02, 0x00, 0xBF, 0x43, 0x00, 0x00, 0x00, 0xE8, 0xEE, 0xE1, 0xE9, 0xFF, 0x49, 0x89, 0xC6,
+    0x48, 0x89, 0xC7, 0xBE
+};
+
+static const uint8_t kRpaResolveSavePatched26_7[] =
+{
+    0xEB, 0x76, 0x41, 0x89, 0x0E, 0xC6, 0x03, 0x01, 0x44, 0x89, 0xE8, 0x83, 0xE0, 0x0F, 0x48, 0x8D,
+    0x04, 0x40, 0x48, 0x8D, 0x15, 0x71, 0xB6, 0x92, 0x00, 0x48, 0x8D, 0x04, 0xC2, 0x89, 0x08, 0x41,
+    0x8B, 0x4E, 0x03, 0x89, 0x48, 0x03, 0x41, 0x8B, 0x0F, 0x89, 0x48, 0x08, 0x41, 0x8B, 0x4F, 0x03,
+    0x89, 0x48, 0x0B, 0xC3
+};
+
+static const uint8_t kFalAddRpaOriginal26_7[] =
+{
+    0x49, 0x89, 0xC6, 0x41, 0x0F, 0xB6, 0x17, 0x49, 0x8D, 0x4F, 0x01, 0x48, 0x8D, 0x35, 0x88, 0x01,
+    0x00, 0x00
+};
+
+static const uint8_t kFalAddRpaPatched26_7[] =
+{
+    0x49, 0x89, 0xC6, 0x31, 0xD2, 0xE8, 0x84, 0x00, 0x00, 0x00, 0x90, 0x48, 0x8D, 0x35, 0x88, 0x01,
+    0x00, 0x00
+};
+
+static const uint8_t kFalLookupHelperOriginal26_7[] =
+{
+    0xBF, 0x02, 0x00, 0x00, 0x00, 0xBE, 0x42, 0x00, 0x00, 0x00, 0xE8, 0x2F, 0x2B, 0xEB, 0xFF, 0xBB,
+    0x68, 0x00, 0x00, 0x00, 0x84, 0xC0, 0x0F, 0x84, 0x9C, 0x00, 0x00, 0x00, 0x0F, 0xB6, 0x35, 0x52,
+    0x30, 0x90, 0x00, 0x0F, 0xB7, 0x15, 0x49, 0x30, 0x90, 0x00, 0x48, 0x8D, 0x3D, 0x37, 0x1C, 0x71,
+    0x00, 0x31, 0xC0, 0xE8, 0x69, 0xA4, 0x01, 0x00, 0xBF, 0x42, 0x00, 0x00, 0x00, 0xE8, 0xD2, 0x02,
+    0xE9, 0xFF, 0x49, 0x89, 0xC6, 0x48, 0x89, 0xC7, 0xBE, 0x10, 0x00, 0x00, 0x00, 0xE8, 0x85, 0x96,
+    0x64, 0x00, 0x84, 0xC0, 0x74, 0x62, 0x4C, 0x89, 0xF7, 0xE8, 0xEE
+};
+
+static const uint8_t kFalLookupHelperPatched26_7[] =
+{
+    0xBB, 0x68, 0x00, 0x00, 0x00, 0xE9, 0xAE, 0x00, 0x00, 0x00, 0x48, 0x8D, 0x05, 0x72, 0xD7, 0x91,
+    0x00, 0xB9, 0x10, 0x00, 0x00, 0x00, 0x41, 0x8B, 0x37, 0x41, 0x8B, 0x7F, 0x03, 0x80, 0x7C, 0xD0,
+    0x08, 0x01, 0x75, 0x24, 0x44, 0x8B, 0x00, 0x41, 0x31, 0xF0, 0x44, 0x8B, 0x48, 0x03, 0x41, 0x31,
+    0xF9, 0x45, 0x09, 0xC1, 0x75, 0x12, 0x84, 0xD2, 0x75, 0x08, 0x48, 0x8B, 0x70, 0x08, 0x48, 0x89,
+    0x70, 0x10, 0x48, 0x8D, 0x40, 0x10, 0xEB, 0x0B, 0x48, 0x83, 0xC0, 0x18, 0xFF, 0xC9, 0x75, 0xCD,
+    0x4C, 0x89, 0xF8, 0x0F, 0xB6, 0x10, 0x48, 0x8D, 0x48, 0x01, 0xC3
+};
+
+static const uint8_t kFalRemoveRpaOriginal26_7[] =
+{
+    0x48, 0x89, 0xC3, 0x41, 0x0F, 0xB6, 0x17, 0x49, 0x8D, 0x4F, 0x01, 0x48, 0x8D, 0x35, 0xD9, 0x00,
+    0x00, 0x00
+};
+
+static const uint8_t kFalRemoveRpaPatched26_7[] =
+{
+    0x48, 0x89, 0xC3, 0x6A, 0x01, 0x5A, 0xE8, 0x63, 0xFD, 0xFF, 0xFF, 0x48, 0x8D, 0x35, 0xD9, 0x00,
+    0x00, 0x00
 };
 
 static bool shouldPatchBoardId = false;
@@ -466,17 +595,31 @@ static void patched_cs_validate_page(vnode_t vp, memory_object_t pager, memory_o
                 KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kExtScanCapOriginal26, sizeof(kExtScanCapOriginal26), kSpecAdvSetsCapPatched26, sizeof(kSpecAdvSetsCapPatched26)))
                 SYSLOG(MODULE_SHORT, "[advsets] patched extended scanning capability in %s", path);
             if (shouldPatchSpecAdvSets &&
-                KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kLeEventMaskOriginal26, sizeof(kLeEventMaskOriginal26), kLeEventMaskPatched26, sizeof(kLeEventMaskPatched26)))
+                (KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kLeEventMaskOriginal26, sizeof(kLeEventMaskOriginal26), kLeEventMaskPatched26, sizeof(kLeEventMaskPatched26)) ||
+                 KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kLeEventMaskOriginal26_7, sizeof(kLeEventMaskOriginal26_7), kLeEventMaskPatched26_7, sizeof(kLeEventMaskPatched26_7))))
                 SYSLOG(MODULE_SHORT, "[advsets] patched LE event mask in %s", path);
             if (shouldPatchSpecAdvSets &&
-                KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kAdvSetAddrOriginal26, sizeof(kAdvSetAddrOriginal26), kAdvSetAddrPatched26, sizeof(kAdvSetAddrPatched26)))
+                (KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kAdvSetAddrOriginal26, sizeof(kAdvSetAddrOriginal26), kAdvSetAddrPatched26, sizeof(kAdvSetAddrPatched26)) ||
+                 KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kAdvSetAddrOriginal26_7, sizeof(kAdvSetAddrOriginal26_7), kAdvSetAddrPatched26_7, sizeof(kAdvSetAddrPatched26_7))))
                 SYSLOG(MODULE_SHORT, "[advsets] patched advertising set random address in %s", path);
             if (shouldPatchSpecAdvSets &&
-                KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kExtCreateConnOriginal26, sizeof(kExtCreateConnOriginal26), kExtCreateConnPatched26, sizeof(kExtCreateConnPatched26)))
+                (KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kExtCreateConnOriginal26, sizeof(kExtCreateConnOriginal26), kExtCreateConnPatched26, sizeof(kExtCreateConnPatched26)) ||
+                 KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kExtCreateConnOriginal26_7, sizeof(kExtCreateConnOriginal26_7), kExtCreateConnPatched26_7, sizeof(kExtCreateConnPatched26_7))))
                 SYSLOG(MODULE_SHORT, "[advsets] patched extended create connection in %s", path);
             if (shouldPatchSpecAdvSets &&
                 KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kAdvSetAddrResendOriginal26, sizeof(kAdvSetAddrResendOriginal26), kAdvSetAddrResendPatched26, sizeof(kAdvSetAddrResendPatched26)))
                 SYSLOG(MODULE_SHORT, "[advsets] patched advertising set address resend in %s", path);
+            if (shouldPatchSpecAdvSets) {
+                bool rpaHook = KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kRpaResolveHookOriginal26_7, sizeof(kRpaResolveHookOriginal26_7), kRpaResolveHookPatched26_7, sizeof(kRpaResolveHookPatched26_7));
+                bool rpaSave = KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kRpaResolveSaveOriginal26_7, sizeof(kRpaResolveSaveOriginal26_7), kRpaResolveSavePatched26_7, sizeof(kRpaResolveSavePatched26_7));
+                if (rpaHook || rpaSave)
+                    SYSLOG(MODULE_SHORT, "[advsets] patched RPA resolve cache hook (%d/%d) in %s", rpaHook, rpaSave, path);
+                bool falAdd = KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kFalAddRpaOriginal26_7, sizeof(kFalAddRpaOriginal26_7), kFalAddRpaPatched26_7, sizeof(kFalAddRpaPatched26_7));
+                bool falHelper = KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kFalLookupHelperOriginal26_7, sizeof(kFalLookupHelperOriginal26_7), kFalLookupHelperPatched26_7, sizeof(kFalLookupHelperPatched26_7));
+                bool falRemove = KernelPatcher::findAndReplace(const_cast<void *>(data), PAGE_SIZE, kFalRemoveRpaOriginal26_7, sizeof(kFalRemoveRpaOriginal26_7), kFalRemoveRpaPatched26_7, sizeof(kFalRemoveRpaPatched26_7));
+                if (falAdd || falHelper || falRemove)
+                    SYSLOG(MODULE_SHORT, "[advsets] patched Filter Accept List RPA substitution (%d/%d/%d) in %s", falAdd, falHelper, falRemove, path);
+            }
         }
     }
 }
